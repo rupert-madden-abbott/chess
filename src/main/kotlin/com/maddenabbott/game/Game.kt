@@ -1,23 +1,20 @@
 package com.maddenabbott.game
 
-import com.almasb.fxgl.app.GameApplication
-import com.almasb.fxgl.app.GameSettings
-import com.almasb.fxgl.core.math.Vec2
-import com.almasb.fxgl.dsl.entityBuilder
-import com.almasb.fxgl.entity.Entity
-import com.almasb.fxgl.entity.EntityFactory
+import com.badlogic.gdx.Screen
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application
+import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration
+import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.g2d.Batch
+import com.badlogic.gdx.graphics.g2d.BitmapFont
+import com.badlogic.gdx.graphics.g2d.GlyphLayout
+import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.glutils.ShapeRenderer
+import com.badlogic.gdx.math.Vector2
 import com.maddenabbott.game.framework.ceil
 import com.maddenabbott.game.framework.isEven
 import com.maddenabbott.game.framework.isOdd
-import javafx.geometry.Dimension2D
-import javafx.geometry.Insets
-import javafx.scene.Group
-import javafx.scene.layout.StackPane
-import javafx.scene.paint.Color
-import javafx.scene.shape.Circle
-import javafx.scene.shape.Rectangle
-import javafx.scene.text.Font
-import javafx.scene.text.Text
+import ktx.app.KtxGame
+import ktx.app.KtxScreen
 
 class Piece(
   val letter: Char,
@@ -28,18 +25,19 @@ class Piece(
 class Square(
   val row: Int,
   val column: Int,
-  val length: Double,
+  val length: Float,
   val color: Color
 ) {
-// Game coordinates begin in lower left but application coordinates begin in upper left. Therefore rows must be
-// "flipped" whereas columns can stay the same.
-  val position = Vec2((column - 1) * length, ((-row + 9) - 1) * length)
+  // Game coordinates begin in lower left but application coordinates begin in upper left. Therefore rows must be
+  // "flipped" whereas columns can stay the same.
+  val position = Vector2((column - 1) * length, ((row - 1) * length))
 }
 
 class Board(
   columns: Int,
   rows: Int,
-  size: Dimension2D
+  private val height: Float,
+  private val width: Float
 ) {
 
   val squares = (1..(rows * columns)).map {
@@ -48,82 +46,102 @@ class Board(
     val color = if ((column.isEven() && row.isOdd()) || (column.isOdd() && row.isEven())) {
       Color.WHITE
     } else {
-      Color.DARKGRAY.darker()
+      Color.DARK_GRAY
     }
 
-    Square(row, column, size.width / columns, color)
+    Square(row, column, width / columns, color)
   }
 
   fun get(column: Int, row: Int) = squares.find { it.column == column && it.row == row }!!
 }
 
-class GameEntityFactory : EntityFactory {
+class GameEntityFactory(
+  private val font: BitmapFont,
+  private val batch: Batch,
+  private val shapeRenderer: ShapeRenderer
+) {
+  private val glyphLayout = GlyphLayout()
+
   fun addSquare(square: Square) {
-    val group = Group()
-
-    val children = group.children
-
-    val rectangle = Rectangle(square.length, square.length, square.color)
-    children.add(rectangle)
+    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+    shapeRenderer.color = square.color
+    shapeRenderer.rect(square.position.x, square.position.y, square.length, square.length)
+    shapeRenderer.end()
 
     if (square.row == 1) {
-      val text = Text(square.column.toString())
-      text.font = Font(square.length)
-      text.fill = Color.BLACK
-      text.viewOrder = -1.0
-      text.x = square.position.x + (square.length / 2)
-      text.y = square.position.y + (square.length / 2)
-
-      children.add(text)
+      batch.begin()
+      font.data.setScale(1f)
+      glyphLayout.setText(font, square.column.toString())
+      font.color = Color.BLACK
+      font.draw(
+        batch,
+        square.column.toString(),
+        square.position.x + (square.length - glyphLayout.width) / 2,
+        square.position.y + glyphLayout.height + (square.length * .05F)
+      )
+      batch.end()
     }
 
-    entityBuilder()
-      .at(square.position)
-      .view(group)
-      .buildAndAttach()
+    if (square.column == 1) {
+      batch.begin()
+      font.data.setScale(1f)
+      glyphLayout.setText(font, square.row.toString())
+      font.color = Color.BLACK
+      font.draw(
+        batch,
+        square.row.toString(),
+        square.position.x + (square.length * .05F),
+        square.position.y + glyphLayout.height + (square.length - glyphLayout.height) / 2
+      )
+      batch.end()
+    }
   }
 
-  fun addPiece(piece: Piece): Entity {
-    val pane = StackPane()
-
+  fun addPiece(piece: Piece) {
     val square = piece.square
 
-    val text = Text(piece.letter.toString())
-    text.font = Font(square.length / 2)
-    text.fill = piece.color.invert()
-    text.viewOrder = -1.0
-
     val length = square.length / 2
-    val padding = length / 100 * 10
-    val border = Circle(length - padding, Color.BLACK)
+    val padding = length * .35F
+    val borderRadius = length - padding
 
-    val base = Circle(border.radius - (border.radius / 100 * 2), piece.color)
+    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+    shapeRenderer.color = Color.BLACK
+    shapeRenderer.circle(
+      piece.square.position.x + (square.length / 2),
+      piece.square.position.y + (square.length / 2),
+      borderRadius
+    )
+    shapeRenderer.end()
 
-    pane.children.add(text)
-    pane.children.add(border)
-    pane.children.add(base)
+    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
+    shapeRenderer.color = piece.color
+    val innerRadius = borderRadius - (borderRadius * .05F)
+    shapeRenderer.circle(
+      piece.square.position.x + (square.length / 2),
+      piece.square.position.y + (square.length / 2),
+      innerRadius
+    )
+    shapeRenderer.end()
 
-    pane.padding = Insets(padding)
-
-    return entityBuilder()
-      .at(square.position)
-      .view(pane)
-      .buildAndAttach()
+    batch.begin()
+    font.data.setScale(2f)
+    glyphLayout.setText(font, piece.letter.toString())
+    font.color = if (piece.color == Color.WHITE) Color.BLACK else Color.WHITE
+    font.draw(
+      batch,
+      piece.letter.toString(),
+      piece.square.position.x + (square.length - glyphLayout.width) / 2,
+      piece.square.position.y + glyphLayout.height + (square.length - glyphLayout.height) / 2
+    )
+    batch.end()
   }
 }
 
-class Game : GameApplication() {
-  private val size = Dimension2D(800.0, 800.0)
+class GameScreen(height: Float, width: Float) : KtxScreen {
+  private val board = Board(8, 8, height, width)
+  private val factory = GameEntityFactory(BitmapFont(), SpriteBatch(), ShapeRenderer())
 
-  private val factory = GameEntityFactory()
-
-  override fun initSettings(settings: GameSettings) {
-    settings.width = size.width.toInt()
-    settings.height = size.height.toInt()
-  }
-
-  override fun initGame() {
-    val board = Board(8, 8, size)
+  override fun render(delta: Float) {
     board.squares.forEach(factory::addSquare)
 
     factory.addPiece(Piece('R', Color.WHITE, board.get(1, 1)))
@@ -162,6 +180,21 @@ class Game : GameApplication() {
   }
 }
 
-fun main(args: Array<String>) {
-  GameApplication.launch(Game::class.java, args)
+class Game(
+  private val height: Float,
+  private val width: Float
+) : KtxGame<Screen>() {
+  override fun create() {
+    addScreen(GameScreen(height, width))
+    setScreen<GameScreen>()
+  }
+}
+
+fun main() {
+  val height = 800
+  val width = 800
+
+  val config = Lwjgl3ApplicationConfiguration()
+  config.setWindowedMode(width, height)
+  Lwjgl3Application(Game(height.toFloat(), width.toFloat()), config)
 }

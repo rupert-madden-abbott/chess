@@ -16,6 +16,7 @@
         <kotlin.code.style>official</kotlin.code.style>
         <junit.version>4.12</junit.version>
         <gdx.version>1.9.9</gdx.version>
+        <ktx.version>1.9.9-b2</ktx.version>
     </properties>
 
     <dependencies>
@@ -26,9 +27,34 @@
         </dependency>
 
         <dependency>
-            <groupId>com.github.almasb</groupId>
-            <artifactId>fxgl</artifactId>
-            <version>11.3</version>
+            <groupId>com.badlogicgames.gdx</groupId>
+            <artifactId>gdx</artifactId>
+            <version>${gdx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.libktx</groupId>
+            <artifactId>ktx-app</artifactId>
+            <version>${ktx.version}</version>
+        </dependency>
+
+        <!-- Desktop Only -->
+        <dependency>
+            <groupId>com.badlogicgames.gdx</groupId>
+            <artifactId>gdx-backend-lwjgl3</artifactId>
+            <version>${gdx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.badlogicgames.gdx</groupId>
+            <artifactId>gdx-platform</artifactId>
+            <version>${gdx.version}</version>
+            <classifier>natives-desktop</classifier>
+        </dependency>
+        <dependency>
+            <groupId>com.badlogicgames.gdx</groupId>
+            <artifactId>gdx-platform</artifactId>
+            <version>${gdx.version}</version>
+            <classifier>natives-armeabi-v7a</classifier>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
