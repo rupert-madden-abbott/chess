@@ -109,17 +109,19 @@ class GameEntityFactory(
     shapeRenderer.circle(
       piece.square.position.x + (square.length / 2),
       piece.square.position.y + (square.length / 2),
-      borderRadius
+      borderRadius,
+      borderRadius.toInt()
     )
     shapeRenderer.end()
 
     shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
     shapeRenderer.color = piece.color
-    val innerRadius = borderRadius - (borderRadius * .05F)
+    val innerRadius = borderRadius - (borderRadius * .1F)
     shapeRenderer.circle(
       piece.square.position.x + (square.length / 2),
       piece.square.position.y + (square.length / 2),
-      innerRadius
+      innerRadius,
+      innerRadius.toInt()
     )
     shapeRenderer.end()
 
