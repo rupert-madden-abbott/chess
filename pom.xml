@@ -36,6 +36,11 @@
             <artifactId>ktx-app</artifactId>
             <version>${ktx.version}</version>
         </dependency>
+        <dependency>
+            <groupId>io.github.libktx</groupId>
+            <artifactId>ktx-graphics</artifactId>
+            <version>${ktx.version}</version>
+        </dependency>
 
         <!-- Desktop Only -->
         <dependency>

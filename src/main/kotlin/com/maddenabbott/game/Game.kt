@@ -1,5 +1,6 @@
 package com.maddenabbott.game
 
+import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.Screen
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration
@@ -14,7 +15,10 @@ import com.maddenabbott.game.framework.ceil
 import com.maddenabbott.game.framework.isEven
 import com.maddenabbott.game.framework.isOdd
 import ktx.app.KtxGame
+import ktx.app.KtxInputAdapter
 import ktx.app.KtxScreen
+import ktx.graphics.rect
+import ktx.graphics.use
 
 class Piece(
   val letter: Char,
@@ -63,37 +67,37 @@ class GameEntityFactory(
   private val glyphLayout = GlyphLayout()
 
   fun addSquare(square: Square) {
-    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-    shapeRenderer.color = square.color
-    shapeRenderer.rect(square.position.x, square.position.y, square.length, square.length)
-    shapeRenderer.end()
+    shapeRenderer.use(ShapeRenderer.ShapeType.Filled) {
+      it.color = square.color
+      it.rect(square.position, square.length, square.length)
+    }
 
     if (square.row == 1) {
-      batch.begin()
-      font.data.setScale(1f)
-      glyphLayout.setText(font, square.column.toString())
-      font.color = Color.BLACK
-      font.draw(
-        batch,
-        square.column.toString(),
-        square.position.x + (square.length - glyphLayout.width) / 2,
-        square.position.y + glyphLayout.height + (square.length * .05F)
-      )
-      batch.end()
+      batch.use {
+        font.data.setScale(1f)
+        glyphLayout.setText(font, square.column.toString())
+        font.color = Color.BLACK
+        font.draw(
+          it,
+          square.column.toString(),
+          square.position.x + (square.length - glyphLayout.width) / 2,
+          square.position.y + glyphLayout.height + (square.length * .05F)
+        )
+      }
     }
 
     if (square.column == 1) {
-      batch.begin()
-      font.data.setScale(1f)
-      glyphLayout.setText(font, square.row.toString())
-      font.color = Color.BLACK
-      font.draw(
-        batch,
-        square.row.toString(),
-        square.position.x + (square.length * .05F),
-        square.position.y + glyphLayout.height + (square.length - glyphLayout.height) / 2
-      )
-      batch.end()
+      batch.use {
+        font.data.setScale(1f)
+        glyphLayout.setText(font, square.row.toString())
+        font.color = Color.BLACK
+        font.draw(
+          batch,
+          square.row.toString(),
+          square.position.x + (square.length * .05F),
+          square.position.y + glyphLayout.height + (square.length - glyphLayout.height) / 2
+        )
+      }
     }
   }
 
@@ -139,9 +143,13 @@ class GameEntityFactory(
   }
 }
 
-class GameScreen(height: Float, width: Float) : KtxScreen {
+class GameScreen(height: Float, width: Float) : KtxScreen, KtxInputAdapter {
   private val board = Board(8, 8, height, width)
   private val factory = GameEntityFactory(BitmapFont(), SpriteBatch(), ShapeRenderer())
+
+  init {
+    Gdx.input.inputProcessor = this
+  }
 
   override fun render(delta: Float) {
     board.squares.forEach(factory::addSquare)
@@ -179,6 +187,11 @@ class GameScreen(height: Float, width: Float) : KtxScreen {
     factory.addPiece(Piece('P', Color.BLACK, board.get(6, 7)))
     factory.addPiece(Piece('P', Color.BLACK, board.get(7, 7)))
     factory.addPiece(Piece('P', Color.BLACK, board.get(8, 7)))
+  }
+
+  override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
+    println("$screenX $screenY $pointer $button")
+    return true
   }
 }
 
