@@ -5,15 +5,18 @@ import com.badlogic.gdx.Screen
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration
 import com.badlogic.gdx.graphics.Color
+import com.badlogic.gdx.graphics.OrthographicCamera
 import com.badlogic.gdx.graphics.g2d.Batch
 import com.badlogic.gdx.graphics.g2d.BitmapFont
 import com.badlogic.gdx.graphics.g2d.GlyphLayout
 import com.badlogic.gdx.graphics.g2d.SpriteBatch
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector2
+import com.badlogic.gdx.math.Vector3
 import com.maddenabbott.game.framework.ceil
 import com.maddenabbott.game.framework.isEven
 import com.maddenabbott.game.framework.isOdd
+import com.maddenabbott.game.framework.set
 import ktx.app.KtxGame
 import ktx.app.KtxInputAdapter
 import ktx.app.KtxScreen
@@ -26,23 +29,30 @@ class Piece(
   val square: Square
 )
 
-class Square(
+data class Square(
   val row: Int,
   val column: Int,
   val length: Float,
-  val color: Color
+  val color: Color,
+  var selected: Boolean = false
 ) {
   // Game coordinates begin in lower left but application coordinates begin in upper left. Therefore rows must be
   // "flipped" whereas columns can stay the same.
   val position = Vector2((column - 1) * length, ((row - 1) * length))
+
+  fun toggleSelection() {
+    selected = !selected
+  }
 }
 
 class Board(
   columns: Int,
   rows: Int,
-  private val height: Float,
-  private val width: Float
+  width: Float
 ) {
+  private val squareWidth = width / columns
+
+  private var selected: Square? = null
 
   val squares = (1..(rows * columns)).map {
     val column = (it / rows.toDouble()).ceil()
@@ -53,10 +63,25 @@ class Board(
       Color.DARK_GRAY
     }
 
-    Square(row, column, width / columns, color)
+    Square(row, column, squareWidth, color)
   }
 
   fun get(column: Int, row: Int) = squares.find { it.column == column && it.row == row }!!
+
+  fun toggleSelection(x: Int, y: Int) = toggleSelection(x.toFloat(), y.toFloat())
+
+  fun toggleSelection(x: Float, y: Float) {
+    val newSelection = get(ceil(x / squareWidth), ceil(y / squareWidth))
+
+    selected?.toggleSelection()
+
+    if (newSelection != selected) {
+      newSelection.toggleSelection()
+      selected = newSelection
+    } else {
+      selected = null
+    }
+  }
 }
 
 class GameEntityFactory(
@@ -68,7 +93,11 @@ class GameEntityFactory(
 
   fun addSquare(square: Square) {
     shapeRenderer.use(ShapeRenderer.ShapeType.Filled) {
-      it.color = square.color
+      if (square.selected) {
+        it.color = Color.RED
+      } else {
+        it.color = square.color
+      }
       it.rect(square.position, square.length, square.length)
     }
 
@@ -143,15 +172,19 @@ class GameEntityFactory(
   }
 }
 
-class GameScreen(height: Float, width: Float) : KtxScreen, KtxInputAdapter {
-  private val board = Board(8, 8, height, width)
+class GameScreen(width: Float, height: Float) : KtxScreen, KtxInputAdapter {
+  private val board = Board(8, 8, width)
   private val factory = GameEntityFactory(BitmapFont(), SpriteBatch(), ShapeRenderer())
+  private val camera = OrthographicCamera(width, height)
+  private val touchPosition = Vector3()
 
   init {
     Gdx.input.inputProcessor = this
+    camera.setToOrtho(false)
   }
 
   override fun render(delta: Float) {
+    camera.update()
     board.squares.forEach(factory::addSquare)
 
     factory.addPiece(Piece('R', Color.WHITE, board.get(1, 1)))
@@ -190,14 +223,15 @@ class GameScreen(height: Float, width: Float) : KtxScreen, KtxInputAdapter {
   }
 
   override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
-    println("$screenX $screenY $pointer $button")
+    camera.unproject(touchPosition.set(screenX, screenY))
+    board.toggleSelection(touchPosition.x, touchPosition.y)
     return true
   }
 }
 
 class Game(
-  private val height: Float,
-  private val width: Float
+  private val width: Float,
+  private val height: Float
 ) : KtxGame<Screen>() {
   override fun create() {
     addScreen(GameScreen(height, width))
