@@ -23,11 +23,21 @@ import ktx.app.KtxScreen
 import ktx.graphics.rect
 import ktx.graphics.use
 
-class Piece(
+data class Piece(
   val letter: Char,
   val color: Color,
-  val square: Square
-)
+  var square: Square
+) {
+  fun moveTo(square: Square) {
+    this.square.piece = null
+    this.square = square
+    square.piece = this
+  }
+
+  init {
+    square.piece = this
+  }
+}
 
 data class Square(
   val row: Int,
@@ -39,6 +49,8 @@ data class Square(
   // Game coordinates begin in lower left but application coordinates begin in upper left. Therefore rows must be
   // "flipped" whereas columns can stay the same.
   val position = Vector2((column - 1) * length, ((row - 1) * length))
+
+  var piece: Piece? = null
 
   fun toggleSelection() {
     selected = !selected
@@ -66,18 +78,65 @@ class Board(
     Square(row, column, squareWidth, color)
   }
 
+  val pieces = mutableListOf(
+    Piece('R', Color.WHITE, get(1, 1)),
+    Piece('N', Color.WHITE, get(2, 1)),
+    Piece('B', Color.WHITE, get(3, 1)),
+    Piece('Q', Color.WHITE, get(4, 1)),
+    Piece('K', Color.WHITE, get(5, 1)),
+    Piece('B', Color.WHITE, get(6, 1)),
+    Piece('N', Color.WHITE, get(7, 1)),
+    Piece('R', Color.WHITE, get(8, 1)),
+    Piece('P', Color.WHITE, get(1, 2)),
+    Piece('P', Color.WHITE, get(2, 2)),
+    Piece('P', Color.WHITE, get(3, 2)),
+    Piece('P', Color.WHITE, get(4, 2)),
+    Piece('P', Color.WHITE, get(5, 2)),
+    Piece('P', Color.WHITE, get(6, 2)),
+    Piece('P', Color.WHITE, get(7, 2)),
+    Piece('P', Color.WHITE, get(8, 2)),
+    Piece('R', Color.BLACK, get(1, 8)),
+    Piece('N', Color.BLACK, get(2, 8)),
+    Piece('B', Color.BLACK, get(3, 8)),
+    Piece('Q', Color.BLACK, get(4, 8)),
+    Piece('K', Color.BLACK, get(5, 8)),
+    Piece('B', Color.BLACK, get(6, 8)),
+    Piece('N', Color.BLACK, get(7, 8)),
+    Piece('R', Color.BLACK, get(8, 8)),
+    Piece('P', Color.BLACK, get(1, 7)),
+    Piece('P', Color.BLACK, get(2, 7)),
+    Piece('P', Color.BLACK, get(3, 7)),
+    Piece('P', Color.BLACK, get(4, 7)),
+    Piece('P', Color.BLACK, get(5, 7)),
+    Piece('P', Color.BLACK, get(6, 7)),
+    Piece('P', Color.BLACK, get(7, 7)),
+    Piece('P', Color.BLACK, get(8, 7))
+  )
+
   fun get(column: Int, row: Int) = squares.find { it.column == column && it.row == row }!!
 
-  fun toggleSelection(x: Int, y: Int) = toggleSelection(x.toFloat(), y.toFloat())
+  fun touch(x: Float, y: Float) {
+    val targetSquare = get(ceil(x / squareWidth), ceil(y / squareWidth))
+    val currentSquare = selected
 
-  fun toggleSelection(x: Float, y: Float) {
-    val newSelection = get(ceil(x / squareWidth), ceil(y / squareWidth))
+    val currentPiece = currentSquare?.piece
+    val targetPiece = targetSquare.piece
 
-    selected?.toggleSelection()
+    currentSquare?.toggleSelection()
 
-    if (newSelection != selected) {
-      newSelection.toggleSelection()
-      selected = newSelection
+    if (targetSquare != currentSquare) {
+
+      if (currentPiece != null) {
+        if (targetPiece != null) {
+          pieces.remove(targetPiece)
+          targetSquare.piece = null
+        }
+
+        currentPiece.moveTo(targetSquare)
+      }
+
+      targetSquare.toggleSelection()
+      selected = targetSquare
     } else {
       selected = null
     }
@@ -91,7 +150,7 @@ class GameEntityFactory(
 ) {
   private val glyphLayout = GlyphLayout()
 
-  fun addSquare(square: Square) {
+  fun add(square: Square) {
     shapeRenderer.use(ShapeRenderer.ShapeType.Filled) {
       if (square.selected) {
         it.color = Color.RED
@@ -130,7 +189,7 @@ class GameEntityFactory(
     }
   }
 
-  fun addPiece(piece: Piece) {
+  fun add(piece: Piece) {
     val square = piece.square
 
     val length = square.length / 2
@@ -185,46 +244,13 @@ class GameScreen(width: Float, height: Float) : KtxScreen, KtxInputAdapter {
 
   override fun render(delta: Float) {
     camera.update()
-    board.squares.forEach(factory::addSquare)
-
-    factory.addPiece(Piece('R', Color.WHITE, board.get(1, 1)))
-    factory.addPiece(Piece('N', Color.WHITE, board.get(2, 1)))
-    factory.addPiece(Piece('B', Color.WHITE, board.get(3, 1)))
-    factory.addPiece(Piece('Q', Color.WHITE, board.get(4, 1)))
-    factory.addPiece(Piece('K', Color.WHITE, board.get(5, 1)))
-    factory.addPiece(Piece('B', Color.WHITE, board.get(6, 1)))
-    factory.addPiece(Piece('N', Color.WHITE, board.get(7, 1)))
-    factory.addPiece(Piece('R', Color.WHITE, board.get(8, 1)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(1, 2)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(2, 2)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(3, 2)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(4, 2)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(5, 2)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(6, 2)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(7, 2)))
-    factory.addPiece(Piece('P', Color.WHITE, board.get(8, 2)))
-
-    factory.addPiece(Piece('R', Color.BLACK, board.get(1, 8)))
-    factory.addPiece(Piece('N', Color.BLACK, board.get(2, 8)))
-    factory.addPiece(Piece('B', Color.BLACK, board.get(3, 8)))
-    factory.addPiece(Piece('Q', Color.BLACK, board.get(4, 8)))
-    factory.addPiece(Piece('K', Color.BLACK, board.get(5, 8)))
-    factory.addPiece(Piece('B', Color.BLACK, board.get(6, 8)))
-    factory.addPiece(Piece('N', Color.BLACK, board.get(7, 8)))
-    factory.addPiece(Piece('R', Color.BLACK, board.get(8, 8)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(1, 7)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(2, 7)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(3, 7)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(4, 7)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(5, 7)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(6, 7)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(7, 7)))
-    factory.addPiece(Piece('P', Color.BLACK, board.get(8, 7)))
+    board.squares.forEach(factory::add)
+    board.pieces.forEach(factory::add)
   }
 
   override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
     camera.unproject(touchPosition.set(screenX, screenY))
-    board.toggleSelection(touchPosition.x, touchPosition.y)
+    board.touch(touchPosition.x, touchPosition.y)
     return true
   }
 }
