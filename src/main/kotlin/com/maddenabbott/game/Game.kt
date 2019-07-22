@@ -27,6 +27,7 @@ data class Piece(
   val letter: Char,
   val color: Color
 )
+
 data class Square(
   val row: Int,
   val column: Int,
@@ -36,12 +37,6 @@ data class Square(
   // Game coordinates begin in lower left but application coordinates begin in upper left. Therefore rows must be
   // "flipped" whereas columns can stay the same.
   val position = Vector2((column - 1) * length, ((row - 1) * length))
-
-  var selected: Boolean = false
-
-  fun toggleSelection() {
-    selected = !selected
-  }
 }
 
 class Board(
@@ -51,7 +46,7 @@ class Board(
 ) {
   private val squareWidth = width / columns
 
-  private var selected: Square? = null
+  var selectedSquare: Square? = null
 
   val squares = (1..(rows * columns)).map {
     val column = (it / rows.toDouble()).ceil()
@@ -104,23 +99,18 @@ class Board(
 
   fun touch(x: Float, y: Float) {
     val targetSquare = get(ceil(x / squareWidth), ceil(y / squareWidth))
-    val currentSquare = selected
+    val currentPiece = pieceLocations[selectedSquare]
 
-    val currentPiece = pieceLocations[currentSquare]
-
-    currentSquare?.toggleSelection()
-
-    if (targetSquare != currentSquare) {
+    if (targetSquare != selectedSquare) {
 
       if (currentPiece != null) {
         pieceLocations[targetSquare] = currentPiece
-        pieceLocations.remove(currentSquare)
+        pieceLocations.remove(selectedSquare)
       }
 
-      targetSquare.toggleSelection()
-      selected = targetSquare
+      selectedSquare = targetSquare
     } else {
-      selected = null
+      selectedSquare = null
     }
   }
 }
@@ -132,9 +122,9 @@ class GameEntityFactory(
 ) {
   private val glyphLayout = GlyphLayout()
 
-  fun add(square: Square) {
+  fun add(board: Board, square: Square) {
     shapeRenderer.use(ShapeRenderer.ShapeType.Filled) {
-      if (square.selected) {
+      if (board.selectedSquare == square) {
         it.color = Color.RED
       } else {
         it.color = square.color
@@ -224,8 +214,8 @@ class GameScreen(width: Float, height: Float) : KtxScreen, KtxInputAdapter {
 
   override fun render(delta: Float) {
     camera.update()
-    board.squares.forEach(factory::add)
-    board.pieceLocations.forEach{ (square, piece) -> factory.add(square, piece)}
+    board.squares.forEach { square -> factory.add(board, square) }
+    board.pieceLocations.forEach { (square, piece) -> factory.add(square, piece) }
   }
 
   override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
