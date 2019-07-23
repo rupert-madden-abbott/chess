@@ -23,10 +23,21 @@ import ktx.app.KtxScreen
 import ktx.graphics.rect
 import ktx.graphics.use
 
+enum class Player(
+  val color: Color
+) {
+  WHITE(Color.WHITE),
+  BLACK(Color.BLACK);
+
+  fun next() = if (this == WHITE) BLACK else WHITE
+}
+
 data class Piece(
   val letter: Char,
-  val color: Color
-)
+  val owner: Player
+) {
+  val color = owner.color
+}
 
 data class Square(
   val row: Int,
@@ -48,6 +59,8 @@ class Board(
 
   var selectedSquare: Square? = null
 
+  var currentPlayer = Player.WHITE
+
   val squares = (1..(rows * columns)).map {
     val column = (it / rows.toDouble()).ceil()
     val row = it - (rows * (column - 1))
@@ -61,60 +74,64 @@ class Board(
   }
 
   val pieceLocations = mutableMapOf(
-    get(1, 1) to Piece('R', Color.WHITE),
-    get(2, 1) to Piece('N', Color.WHITE),
-    get(3, 1) to Piece('B', Color.WHITE),
-    get(4, 1) to Piece('Q', Color.WHITE),
-    get(5, 1) to Piece('K', Color.WHITE),
-    get(6, 1) to Piece('B', Color.WHITE),
-    get(7, 1) to Piece('N', Color.WHITE),
-    get(8, 1) to Piece('R', Color.WHITE),
-    get(1, 2) to Piece('P', Color.WHITE),
-    get(2, 2) to Piece('P', Color.WHITE),
-    get(3, 2) to Piece('P', Color.WHITE),
-    get(4, 2) to Piece('P', Color.WHITE),
-    get(5, 2) to Piece('P', Color.WHITE),
-    get(6, 2) to Piece('P', Color.WHITE),
-    get(7, 2) to Piece('P', Color.WHITE),
-    get(8, 2) to Piece('P', Color.WHITE),
-    get(1, 8) to Piece('R', Color.BLACK),
-    get(2, 8) to Piece('N', Color.BLACK),
-    get(3, 8) to Piece('B', Color.BLACK),
-    get(4, 8) to Piece('Q', Color.BLACK),
-    get(5, 8) to Piece('K', Color.BLACK),
-    get(6, 8) to Piece('B', Color.BLACK),
-    get(7, 8) to Piece('N', Color.BLACK),
-    get(8, 8) to Piece('R', Color.BLACK),
-    get(1, 7) to Piece('P', Color.BLACK),
-    get(2, 7) to Piece('P', Color.BLACK),
-    get(3, 7) to Piece('P', Color.BLACK),
-    get(4, 7) to Piece('P', Color.BLACK),
-    get(5, 7) to Piece('P', Color.BLACK),
-    get(6, 7) to Piece('P', Color.BLACK),
-    get(7, 7) to Piece('P', Color.BLACK),
-    get(8, 7) to Piece('P', Color.BLACK)
+    get(1, 1) to Piece('R', Player.WHITE),
+    get(2, 1) to Piece('N', Player.WHITE),
+    get(3, 1) to Piece('B', Player.WHITE),
+    get(4, 1) to Piece('Q', Player.WHITE),
+    get(5, 1) to Piece('K', Player.WHITE),
+    get(6, 1) to Piece('B', Player.WHITE),
+    get(7, 1) to Piece('N', Player.WHITE),
+    get(8, 1) to Piece('R', Player.WHITE),
+    get(1, 2) to Piece('P', Player.WHITE),
+    get(2, 2) to Piece('P', Player.WHITE),
+    get(3, 2) to Piece('P', Player.WHITE),
+    get(4, 2) to Piece('P', Player.WHITE),
+    get(5, 2) to Piece('P', Player.WHITE),
+    get(6, 2) to Piece('P', Player.WHITE),
+    get(7, 2) to Piece('P', Player.WHITE),
+    get(8, 2) to Piece('P', Player.WHITE),
+    get(1, 8) to Piece('R', Player.BLACK),
+    get(2, 8) to Piece('N', Player.BLACK),
+    get(3, 8) to Piece('B', Player.BLACK),
+    get(4, 8) to Piece('Q', Player.BLACK),
+    get(5, 8) to Piece('K', Player.BLACK),
+    get(6, 8) to Piece('B', Player.BLACK),
+    get(7, 8) to Piece('N', Player.BLACK),
+    get(8, 8) to Piece('R', Player.BLACK),
+    get(1, 7) to Piece('P', Player.BLACK),
+    get(2, 7) to Piece('P', Player.BLACK),
+    get(3, 7) to Piece('P', Player.BLACK),
+    get(4, 7) to Piece('P', Player.BLACK),
+    get(5, 7) to Piece('P', Player.BLACK),
+    get(6, 7) to Piece('P', Player.BLACK),
+    get(7, 7) to Piece('P', Player.BLACK),
+    get(8, 7) to Piece('P', Player.BLACK)
   )
 
   fun get(column: Int, row: Int) = squares.find { it.column == column && it.row == row }!!
 
   fun touch(x: Float, y: Float) {
     val touchedSquare = get(ceil(x / squareWidth), ceil(y / squareWidth))
-    if (touchedSquare != selectedSquare) {
 
-      val selectedPiece = pieceLocations[selectedSquare]
-      if (selectedPiece != null) {
-        //Moving a piece
-        pieceLocations.remove(selectedSquare)
-        pieceLocations[touchedSquare] = selectedPiece
-        selectedSquare = null
-      } else {
-        //Selecting a new square
-        selectedSquare = touchedSquare
-      }
-
-    } else {
+    if (touchedSquare == selectedSquare) {
       //Deselecting a square
       selectedSquare = null
+      return
+    }
+
+    val selectedPiece = pieceLocations[selectedSquare]
+    if (selectedPiece == null || selectedPiece.owner != currentPlayer) {
+      //Selecting a new square
+      selectedSquare = touchedSquare
+      return
+    }
+
+    if (selectedPiece.owner == currentPlayer) {
+      //Moving a piece
+      pieceLocations.remove(selectedSquare)
+      pieceLocations[touchedSquare] = selectedPiece
+      selectedSquare = null
+      currentPlayer = currentPlayer.next()
     }
   }
 }
