@@ -98,18 +98,22 @@ class Board(
   fun get(column: Int, row: Int) = squares.find { it.column == column && it.row == row }!!
 
   fun touch(x: Float, y: Float) {
-    val targetSquare = get(ceil(x / squareWidth), ceil(y / squareWidth))
-    val currentPiece = pieceLocations[selectedSquare]
+    val touchedSquare = get(ceil(x / squareWidth), ceil(y / squareWidth))
+    if (touchedSquare != selectedSquare) {
 
-    if (targetSquare != selectedSquare) {
-
-      if (currentPiece != null) {
-        pieceLocations[targetSquare] = currentPiece
+      val selectedPiece = pieceLocations[selectedSquare]
+      if (selectedPiece != null) {
+        //Moving a piece
         pieceLocations.remove(selectedSquare)
+        pieceLocations[touchedSquare] = selectedPiece
+        selectedSquare = null
+      } else {
+        //Selecting a new square
+        selectedSquare = touchedSquare
       }
 
-      selectedSquare = targetSquare
     } else {
+      //Deselecting a square
       selectedSquare = null
     }
   }
