@@ -24,27 +24,38 @@ import ktx.graphics.rect
 import ktx.graphics.use
 
 enum class Player(
-  val color: Color
+  val color: Color,
+  val direction: Int
 ) {
-  WHITE(Color.WHITE),
-  BLACK(Color.BLACK);
+  WHITE(Color.WHITE, 1),
+  BLACK(Color.BLACK, -1);
 
   fun next() = if (this == WHITE) BLACK else WHITE
+
+  fun isAheadOf(origin: Square, destination: Square): Boolean {
+    val vector = destination.row - origin.row
+    return vector > 0 && direction > 0 || vector < 1 && direction < 1
+  }
 }
 
-fun isLine(o: Square, d: Square) = o.column == d.column || o.row == d.row
+fun isPawnForwards(
+  o: Square,
+  d: Square,
+  p: Player
+) = d.isAheadOf(o, p) && (
+      o.rowsApart(d) == 1
+          || o.rowsApart(d) == 2 && ((o.row == 2 && p == Player.WHITE) || (o.row == 7 && p == Player.BLACK))
+      )
 
-fun isDiagonal(o: Square, d: Square) = Math.abs(o.column - d.column) == Math.abs(o.row - d.row)
+fun isPawnDiagonal(o: Square, d: Square, p: Player) = p.isAheadOf(o, d) && o.rowsApart(d) == 1 && o.isDiagonalTo(d)
 
-fun isLineOrDiagonal(o: Square, d: Square) = isDiagonal(o, d) || isLine(o, d)
-
-enum class PieceType(val letter: Char, val isValidPath: (Square, Square) -> Boolean) {
-  PAWN('P', { o, d -> false }),
-  KNIGHT('N', { o, d -> false }),
-  BISHOP('B', ::isDiagonal),
-  ROOK('R', ::isLine),
-  QUEEN('Q', ::isLineOrDiagonal),
-  KING('K', { o, d -> false });
+enum class PieceType(val letter: Char, val isValidPath: (Square, Square, Player) -> Boolean) {
+  PAWN('P', { o, d, p -> isPawnForwards(o, d, p) || isPawnDiagonal(o, d, p) }),
+  KNIGHT('N', { o, d, p -> false }),
+  BISHOP('B', { o, d, _ -> o.isDiagonalTo(d) }),
+  ROOK('R', { o, d, _ -> o.isInlineWith(d) }),
+  QUEEN('Q', { o, d, _ -> o.isDiagonalTo(d) || o.isInlineWith(d) }),
+  KING('K', { o, d, p -> false });
 }
 
 data class Piece(
@@ -64,6 +75,23 @@ data class Square(
   // Game coordinates begin in lower left but application coordinates begin in upper left. Therefore rows must be
   // "flipped" whereas columns can stay the same.
   val position = Vector2((column - 1) * length, ((row - 1) * length))
+
+  fun columnsApart(square: Square) = distance(this.column, square.column)
+
+  fun rowsApart(square: Square) = distance(this.row, square.row)
+
+  fun isInRowWith(square: Square) = row == square.row
+
+  fun isInColumnWith(square: Square) = column == square.column
+
+  fun isInlineWith(square: Square) = column == square.column || row == square.row
+
+  fun isDiagonalTo(square: Square) = rowsApart(square) == columnsApart(square)
+
+  fun isAheadOf(square: Square, player: Player) = isInColumnWith(square) && player.isAheadOf(square, this)
+
+  private fun distance(firstCoordinate: Int, secondCoordinate: Int) = Math.abs(firstCoordinate - secondCoordinate)
+
 }
 
 class Board(
@@ -160,7 +188,7 @@ class Board(
   }
 
   private fun calculateValidMoveSquares(piece: Piece, location: Square) {
-    validMoveSquares.addAll(squares.filter { piece.type.isValidPath(location, it) })
+    validMoveSquares.addAll(squares.filter { piece.type.isValidPath(location, it, piece.owner) })
   }
 }
 
