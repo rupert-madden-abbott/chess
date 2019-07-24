@@ -25,7 +25,7 @@ import ktx.graphics.use
 
 enum class Player(
   val color: Color,
-  val direction: Int
+  private val direction: Int
 ) {
   WHITE(Color.WHITE, 1),
   BLACK(Color.BLACK, -1);
@@ -51,11 +51,11 @@ fun isPawnDiagonal(o: Square, d: Square, p: Player) = p.isAheadOf(o, d) && o.row
 
 enum class PieceType(val letter: Char, val isValidPath: (Square, Square, Player) -> Boolean) {
   PAWN('P', { o, d, p -> isPawnForwards(o, d, p) || isPawnDiagonal(o, d, p) }),
-  KNIGHT('N', { o, d, p -> o.distanceTo(d) > 2 && o.distanceTo(d) < 2.5 }),
+  KNIGHT('N', { o, d, _ -> o.distanceTo(d) > 2 && o.distanceTo(d) < 2.5 }),
   BISHOP('B', { o, d, _ -> o.isDiagonalTo(d) }),
   ROOK('R', { o, d, _ -> o.isInlineWith(d) }),
   QUEEN('Q', { o, d, _ -> o.isDiagonalTo(d) || o.isInlineWith(d) }),
-  KING('K', { o, d, p -> (o.isDiagonalTo(d) || o.isInlineWith(d)) && o.distanceTo(d) < 2});
+  KING('K', { o, d, _ -> (o.isDiagonalTo(d) || o.isInlineWith(d)) && o.distanceTo(d) < 2});
 }
 
 data class Piece(
@@ -76,15 +76,13 @@ data class Square(
   // "flipped" whereas columns can stay the same.
   val position = Vector2((column - 1) * length, ((row - 1) * length))
 
-  fun columnsApart(square: Square) = distance(this.column, square.column)
+  private fun columnsApart(square: Square) = distance(this.column, square.column)
 
   fun rowsApart(square: Square) = distance(this.row, square.row)
 
   fun distanceTo(square: Square) = Math.sqrt((columnsApart(square) * columnsApart(square) + rowsApart(square) * rowsApart(square)).toDouble())
 
-  fun isInRowWith(square: Square) = row == square.row
-
-  fun isInColumnWith(square: Square) = column == square.column
+  private fun isInColumnWith(square: Square) = column == square.column
 
   fun isInlineWith(square: Square) = column == square.column || row == square.row
 
@@ -107,7 +105,7 @@ class Board(
 
   val validMoveSquares = mutableListOf<Square>()
 
-  var currentPlayer = Player.WHITE
+  private var currentPlayer = Player.WHITE
 
   val squares = (1..(rows * columns)).map {
     val column = (it / rows.toDouble()).ceil()
