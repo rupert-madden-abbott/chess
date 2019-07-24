@@ -99,7 +99,7 @@ data class Square(
           || isDiagonalTo(first) && isDiagonalTo(second) && first.isDiagonalTo(second)
       )
       && (first.row < row && row < second.row || first.row > row && row > second.row
-      || first.column < column && column < second.column || second.column > column && column > second.column)
+      || first.column < column && column < second.column || first.column > column && column > second.column)
 
 }
 
