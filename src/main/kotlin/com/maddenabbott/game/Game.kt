@@ -35,10 +35,17 @@ enum class Player(
 enum class PieceType(val letter: Char, val isValidPath: (Square, Square) -> Boolean) {
   PAWN('P', { o, d -> false }),
   KNIGHT('N', { o, d -> false }),
-  BISHOP('B', { o, d -> false }),
-  ROOK('R', { o, d -> o.column == d.column || o.row == d.row }),
+  BISHOP('B', ::isDiagonal),
+  ROOK('R', ::isLine),
   QUEEN('Q', { o, d -> false }),
-  KING('K', { o, d -> false })
+  KING('K', { o, d -> false });
+
+  companion object {
+    fun isLine(o: Square, d: Square) = o.column == d.column || o.row == d.row
+
+    fun isDiagonal(o: Square, d: Square) = Math.abs(o.column - d.column) == Math.abs(o.row - d.row)
+  }
+
 }
 
 data class Piece(
