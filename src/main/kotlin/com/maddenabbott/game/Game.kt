@@ -190,7 +190,13 @@ class Board(
   }
 
   private fun calculateValidMoveSquares(piece: Piece, location: Square) {
-    validMoveSquares.addAll(squares.filter { piece.type.isValidPath(location, it, piece.owner) })
+    val ownPieceSquares = pieceLocations.keys.filter { pieceLocations[it]?.owner == piece.owner }
+
+    val possibleSquares =
+      squares.filter { piece.type.isValidPath(location, it, piece.owner) }
+        .filter { !ownPieceSquares.contains(it) }
+
+    validMoveSquares.addAll(possibleSquares)
   }
 }
 
