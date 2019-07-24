@@ -55,7 +55,7 @@ enum class PieceType(val letter: Char, val isValidPath: (Square, Square, Player)
   BISHOP('B', { o, d, _ -> o.isDiagonalTo(d) }),
   ROOK('R', { o, d, _ -> o.isInlineWith(d) }),
   QUEEN('Q', { o, d, _ -> o.isDiagonalTo(d) || o.isInlineWith(d) }),
-  KING('K', { o, d, _ -> (o.isDiagonalTo(d) || o.isInlineWith(d)) && o.distanceTo(d) < 2});
+  KING('K', { o, d, _ -> (o.isDiagonalTo(d) || o.isInlineWith(d)) && o.distanceTo(d) < 2 });
 }
 
 data class Piece(
@@ -80,7 +80,8 @@ data class Square(
 
   fun rowsApart(square: Square) = distance(this.row, square.row)
 
-  fun distanceTo(square: Square) = Math.sqrt((columnsApart(square) * columnsApart(square) + rowsApart(square) * rowsApart(square)).toDouble())
+  fun distanceTo(square: Square) =
+    Math.sqrt((columnsApart(square) * columnsApart(square) + rowsApart(square) * rowsApart(square)).toDouble())
 
   private fun isInColumnWith(square: Square) = column == square.column
 
@@ -91,6 +92,14 @@ data class Square(
   fun isAheadOf(square: Square, player: Player) = isInColumnWith(square) && player.isAheadOf(square, this)
 
   private fun distance(firstCoordinate: Int, secondCoordinate: Int) = Math.abs(firstCoordinate - secondCoordinate)
+
+  fun isBetween(first: Square, second: Square) = this != first && this != second
+      && (
+      isInlineWith(first) && isInlineWith(second) && first.isInlineWith(second)
+          || isDiagonalTo(first) && isDiagonalTo(second) && first.isDiagonalTo(second)
+      )
+      && (first.row < row && row < second.row || first.row > row && row > second.row
+      || first.column < column && column < second.column || second.column > column && column > second.column)
 
 }
 
@@ -193,6 +202,7 @@ class Board(
     val possibleSquares =
       squares.filter { piece.type.isValidPath(location, it, piece.owner) }
         .filter { !ownPieceSquares.contains(it) }
+        .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
 
     validMoveSquares.addAll(possibleSquares)
   }
