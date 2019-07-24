@@ -32,11 +32,21 @@ enum class Player(
   fun next() = if (this == WHITE) BLACK else WHITE
 }
 
+enum class PieceType(val letter: Char, val isValidPath: (Square, Square) -> Boolean) {
+  PAWN('P', { o, d -> false }),
+  KNIGHT('N', { o, d -> false }),
+  BISHOP('B', { o, d -> false }),
+  ROOK('R', { o, d -> o.column == d.column || o.row == d.row }),
+  QUEEN('Q', { o, d -> false }),
+  KING('K', { o, d -> false })
+}
+
 data class Piece(
-  val letter: Char,
+  val type: PieceType,
   val owner: Player
 ) {
   val color = owner.color
+  val letter = type.letter
 }
 
 data class Square(
@@ -59,6 +69,8 @@ class Board(
 
   var selectedSquare: Square? = null
 
+  val validMoveSquares = mutableListOf<Square>()
+
   var currentPlayer = Player.WHITE
 
   val squares = (1..(rows * columns)).map {
@@ -74,65 +86,75 @@ class Board(
   }
 
   val pieceLocations = mutableMapOf(
-    get(1, 1) to Piece('R', Player.WHITE),
-    get(2, 1) to Piece('N', Player.WHITE),
-    get(3, 1) to Piece('B', Player.WHITE),
-    get(4, 1) to Piece('Q', Player.WHITE),
-    get(5, 1) to Piece('K', Player.WHITE),
-    get(6, 1) to Piece('B', Player.WHITE),
-    get(7, 1) to Piece('N', Player.WHITE),
-    get(8, 1) to Piece('R', Player.WHITE),
-    get(1, 2) to Piece('P', Player.WHITE),
-    get(2, 2) to Piece('P', Player.WHITE),
-    get(3, 2) to Piece('P', Player.WHITE),
-    get(4, 2) to Piece('P', Player.WHITE),
-    get(5, 2) to Piece('P', Player.WHITE),
-    get(6, 2) to Piece('P', Player.WHITE),
-    get(7, 2) to Piece('P', Player.WHITE),
-    get(8, 2) to Piece('P', Player.WHITE),
-    get(1, 8) to Piece('R', Player.BLACK),
-    get(2, 8) to Piece('N', Player.BLACK),
-    get(3, 8) to Piece('B', Player.BLACK),
-    get(4, 8) to Piece('Q', Player.BLACK),
-    get(5, 8) to Piece('K', Player.BLACK),
-    get(6, 8) to Piece('B', Player.BLACK),
-    get(7, 8) to Piece('N', Player.BLACK),
-    get(8, 8) to Piece('R', Player.BLACK),
-    get(1, 7) to Piece('P', Player.BLACK),
-    get(2, 7) to Piece('P', Player.BLACK),
-    get(3, 7) to Piece('P', Player.BLACK),
-    get(4, 7) to Piece('P', Player.BLACK),
-    get(5, 7) to Piece('P', Player.BLACK),
-    get(6, 7) to Piece('P', Player.BLACK),
-    get(7, 7) to Piece('P', Player.BLACK),
-    get(8, 7) to Piece('P', Player.BLACK)
+    get(1, 1) to Piece(PieceType.ROOK, Player.WHITE),
+    get(2, 1) to Piece(PieceType.KNIGHT, Player.WHITE),
+    get(3, 1) to Piece(PieceType.BISHOP, Player.WHITE),
+    get(4, 1) to Piece(PieceType.QUEEN, Player.WHITE),
+    get(5, 1) to Piece(PieceType.KING, Player.WHITE),
+    get(6, 1) to Piece(PieceType.BISHOP, Player.WHITE),
+    get(7, 1) to Piece(PieceType.KNIGHT, Player.WHITE),
+    get(8, 1) to Piece(PieceType.ROOK, Player.WHITE),
+    get(1, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(2, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(3, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(4, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(5, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(6, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(7, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(8, 2) to Piece(PieceType.PAWN, Player.WHITE),
+    get(1, 8) to Piece(PieceType.ROOK, Player.BLACK),
+    get(2, 8) to Piece(PieceType.KNIGHT, Player.BLACK),
+    get(3, 8) to Piece(PieceType.BISHOP, Player.BLACK),
+    get(4, 8) to Piece(PieceType.QUEEN, Player.BLACK),
+    get(5, 8) to Piece(PieceType.KING, Player.BLACK),
+    get(6, 8) to Piece(PieceType.BISHOP, Player.BLACK),
+    get(7, 8) to Piece(PieceType.KNIGHT, Player.BLACK),
+    get(8, 8) to Piece(PieceType.ROOK, Player.BLACK),
+    get(1, 7) to Piece(PieceType.PAWN, Player.BLACK),
+    get(2, 7) to Piece(PieceType.PAWN, Player.BLACK),
+    get(3, 7) to Piece(PieceType.PAWN, Player.BLACK),
+    get(4, 7) to Piece(PieceType.PAWN, Player.BLACK),
+    get(5, 7) to Piece(PieceType.PAWN, Player.BLACK),
+    get(6, 7) to Piece(PieceType.PAWN, Player.BLACK),
+    get(7, 7) to Piece(PieceType.PAWN, Player.BLACK),
+    get(8, 7) to Piece(PieceType.PAWN, Player.BLACK)
   )
 
   fun get(column: Int, row: Int) = squares.find { it.column == column && it.row == row }!!
 
   fun touch(x: Float, y: Float) {
     val touchedSquare = get(ceil(x / squareWidth), ceil(y / squareWidth))
+    val selectedPiece = pieceLocations[selectedSquare]
 
-    if (touchedSquare == selectedSquare) {
+    val previousSelectedSquare = selectedSquare
+
+    if (touchedSquare == previousSelectedSquare) {
       //Deselecting a square
       selectedSquare = null
-      return
-    }
-
-    val selectedPiece = pieceLocations[selectedSquare]
-    if (selectedPiece == null || selectedPiece.owner != currentPlayer) {
+    } else if (
+      selectedPiece == null
+      || selectedPiece.owner != currentPlayer
+      || !validMoveSquares.contains(touchedSquare)
+    ) {
       //Selecting a new square
       selectedSquare = touchedSquare
-      return
-    }
-
-    if (selectedPiece.owner == currentPlayer) {
+    } else {
       //Moving a piece
-      pieceLocations.remove(selectedSquare)
+      pieceLocations.remove(previousSelectedSquare)
       pieceLocations[touchedSquare] = selectedPiece
       selectedSquare = null
       currentPlayer = currentPlayer.next()
     }
+
+    validMoveSquares.clear()
+    val touchedPiece = pieceLocations[touchedSquare]
+    if (touchedPiece?.owner == currentPlayer && touchedSquare != previousSelectedSquare) {
+      calculateValidMoveSquares(touchedPiece, touchedSquare)
+    }
+  }
+
+  private fun calculateValidMoveSquares(piece: Piece, location: Square) {
+    validMoveSquares.addAll(squares.filter { piece.type.isValidPath(location, it) })
   }
 }
 
@@ -145,10 +167,10 @@ class GameEntityFactory(
 
   fun add(board: Board, square: Square) {
     shapeRenderer.use(ShapeRenderer.ShapeType.Filled) {
-      if (board.selectedSquare == square) {
-        it.color = Color.RED
-      } else {
-        it.color = square.color
+      it.color = when {
+        board.selectedSquare == square -> Color.RED
+        board.validMoveSquares.contains(square) -> Color.BLUE
+        else -> square.color
       }
       it.rect(square.position, square.length, square.length)
     }
