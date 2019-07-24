@@ -43,15 +43,18 @@ fun isPawnForwards(
   d: Square,
   p: Player
 ) = d.isAheadOf(o, p) && (
-      o.rowsApart(d) == 1
-          || o.rowsApart(d) == 2 && ((o.row == 2 && p == Player.WHITE) || (o.row == 7 && p == Player.BLACK))
-      )
+    o.rowsApart(d) == 1
+        || o.rowsApart(d) == 2 && ((o.row == 2 && p == Player.WHITE) || (o.row == 7 && p == Player.BLACK))
+    )
 
 fun isPawnDiagonal(o: Square, d: Square, p: Player) = p.isAheadOf(o, d) && o.rowsApart(d) == 1 && o.isDiagonalTo(d)
 
 enum class PieceType(val letter: Char, val isValidPath: (Square, Square, Player) -> Boolean) {
   PAWN('P', { o, d, p -> isPawnForwards(o, d, p) || isPawnDiagonal(o, d, p) }),
-  KNIGHT('N', { o, d, p -> false }),
+  KNIGHT('N', { o, d, p ->
+    o.columnsApart(d) == 2 && o.rowsApart(d) == 1
+        || o.columnsApart(d) == 1 && o.rowsApart(d) == 2
+  }),
   BISHOP('B', { o, d, _ -> o.isDiagonalTo(d) }),
   ROOK('R', { o, d, _ -> o.isInlineWith(d) }),
   QUEEN('Q', { o, d, _ -> o.isDiagonalTo(d) || o.isInlineWith(d) }),
