@@ -192,19 +192,18 @@ class Board(
     validMoveSquares.clear()
     val touchedPiece = pieceLocations[touchedSquare]
     if (touchedPiece?.owner == currentPlayer && touchedSquare != previousSelectedSquare) {
-      calculateValidMoveSquares(touchedPiece, touchedSquare)
+      validMoveSquares.addAll(calculateValidMoveSquares(touchedPiece, touchedSquare))
     }
   }
 
-  private fun calculateValidMoveSquares(piece: Piece, location: Square) {
+  private fun calculateValidMoveSquares(piece: Piece, location: Square): List<Square> {
     val ownPieceSquares = pieceLocations.keys.filter { pieceLocations[it]?.owner == piece.owner }
+    val otherPieceSquares = pieceLocations.keys.filter { pieceLocations[it]?.owner != piece.owner }
 
-    val possibleSquares =
-      squares.filter { piece.type.isValidPath(location, it, piece.owner) }
+    return squares.filter { piece.type.isValidPath(location, it, piece.owner) }
         .filter { !ownPieceSquares.contains(it) }
         .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
-
-    validMoveSquares.addAll(possibleSquares)
+        .filter { possibleSquare -> !otherPieceSquares.any { it.isBetween(possibleSquare, location) } }
   }
 }
 
