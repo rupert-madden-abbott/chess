@@ -51,14 +51,11 @@ fun isPawnDiagonal(o: Square, d: Square, p: Player) = p.isAheadOf(o, d) && o.row
 
 enum class PieceType(val letter: Char, val isValidPath: (Square, Square, Player) -> Boolean) {
   PAWN('P', { o, d, p -> isPawnForwards(o, d, p) || isPawnDiagonal(o, d, p) }),
-  KNIGHT('N', { o, d, p ->
-    o.columnsApart(d) == 2 && o.rowsApart(d) == 1
-        || o.columnsApart(d) == 1 && o.rowsApart(d) == 2
-  }),
+  KNIGHT('N', { o, d, p -> o.distanceTo(d) > 2 && o.distanceTo(d) < 2.5 }),
   BISHOP('B', { o, d, _ -> o.isDiagonalTo(d) }),
   ROOK('R', { o, d, _ -> o.isInlineWith(d) }),
   QUEEN('Q', { o, d, _ -> o.isDiagonalTo(d) || o.isInlineWith(d) }),
-  KING('K', { o, d, p -> false });
+  KING('K', { o, d, p -> (o.isDiagonalTo(d) || o.isInlineWith(d)) && o.distanceTo(d) < 2});
 }
 
 data class Piece(
@@ -82,6 +79,8 @@ data class Square(
   fun columnsApart(square: Square) = distance(this.column, square.column)
 
   fun rowsApart(square: Square) = distance(this.row, square.row)
+
+  fun distanceTo(square: Square) = Math.sqrt((columnsApart(square) * columnsApart(square) + rowsApart(square) * rowsApart(square)).toDouble())
 
   fun isInRowWith(square: Square) = row == square.row
 
