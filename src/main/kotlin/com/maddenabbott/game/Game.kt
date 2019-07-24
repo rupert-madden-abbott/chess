@@ -32,20 +32,19 @@ enum class Player(
   fun next() = if (this == WHITE) BLACK else WHITE
 }
 
+fun isLine(o: Square, d: Square) = o.column == d.column || o.row == d.row
+
+fun isDiagonal(o: Square, d: Square) = Math.abs(o.column - d.column) == Math.abs(o.row - d.row)
+
+fun isLineOrDiagonal(o: Square, d: Square) = isDiagonal(o, d) || isLine(o, d)
+
 enum class PieceType(val letter: Char, val isValidPath: (Square, Square) -> Boolean) {
   PAWN('P', { o, d -> false }),
   KNIGHT('N', { o, d -> false }),
   BISHOP('B', ::isDiagonal),
   ROOK('R', ::isLine),
-  QUEEN('Q', { o, d -> false }),
+  QUEEN('Q', ::isLineOrDiagonal),
   KING('K', { o, d -> false });
-
-  companion object {
-    fun isLine(o: Square, d: Square) = o.column == d.column || o.row == d.row
-
-    fun isDiagonal(o: Square, d: Square) = Math.abs(o.column - d.column) == Math.abs(o.row - d.row)
-  }
-
 }
 
 data class Piece(
