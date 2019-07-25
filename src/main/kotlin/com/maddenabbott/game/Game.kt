@@ -200,10 +200,16 @@ class Board(
     val ownPieceSquares = pieceLocations.keys.filter { pieceLocations[it]?.owner == piece.owner }
     val otherPieceSquares = pieceLocations.keys.filter { pieceLocations[it]?.owner != piece.owner }
 
-    return squares.filter { piece.type.isValidPath(location, it, piece.owner) }
-        .filter { !ownPieceSquares.contains(it) }
-        .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
-        .filter { possibleSquare -> !otherPieceSquares.any { it.isBetween(possibleSquare, location) } }
+    return squares.asSequence()
+      .filter { piece.type.isValidPath(location, it, piece.owner) }
+      .filter { !ownPieceSquares.contains(it) }
+      .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
+      .filter { possibleSquare -> !otherPieceSquares.any { it.isBetween(possibleSquare, location) } }
+      .filter {
+        piece.type != PieceType.PAWN
+            || it.isAheadOf(location, piece.owner) && !otherPieceSquares.contains(it)
+            || it.isDiagonalTo(location) && otherPieceSquares.contains(it)
+      }.toList()
   }
 }
 
