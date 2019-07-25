@@ -112,6 +112,10 @@ class Board(
 
   var selectedSquare: Square? = null
 
+  private var enPassantSquare: Square? = null
+
+  private var enPassantPieceSquare: Square? = null
+
   val validMoveSquares = mutableListOf<Square>()
 
   private var currentPlayer = Player.WHITE
@@ -183,6 +187,19 @@ class Board(
       selectedSquare = touchedSquare
     } else {
       //Moving a piece
+      if (selectedPiece.type == PieceType.PAWN && touchedSquare == enPassantSquare) {
+        pieceLocations.remove(enPassantPieceSquare)
+      }
+
+      if (selectedPiece.type == PieceType.PAWN && previousSelectedSquare != null
+        && touchedSquare.rowsApart(previousSelectedSquare) == 2) {
+        enPassantSquare = squares.first { it.isBetween(touchedSquare, previousSelectedSquare) }
+        enPassantPieceSquare = touchedSquare
+      } else {
+        enPassantSquare = null
+        enPassantPieceSquare = null
+      }
+
       pieceLocations.remove(previousSelectedSquare)
       pieceLocations[touchedSquare] = selectedPiece
       selectedSquare = null
@@ -209,6 +226,7 @@ class Board(
         piece.type != PieceType.PAWN
             || it.isAheadOf(location, piece.owner) && !otherPieceSquares.contains(it)
             || it.isDiagonalTo(location) && otherPieceSquares.contains(it)
+            || enPassantSquare == it
       }.toList()
   }
 }
