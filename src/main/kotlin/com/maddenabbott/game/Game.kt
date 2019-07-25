@@ -192,7 +192,8 @@ class Board(
       }
 
       if (selectedPiece.type == PieceType.PAWN && previousSelectedSquare != null
-        && touchedSquare.rowsApart(previousSelectedSquare) == 2) {
+        && touchedSquare.rowsApart(previousSelectedSquare) == 2
+      ) {
         enPassantSquare = squares.first { it.isBetween(touchedSquare, previousSelectedSquare) }
         enPassantPieceSquare = touchedSquare
       } else {
@@ -209,24 +210,31 @@ class Board(
     validMoveSquares.clear()
     val touchedPiece = pieceLocations[touchedSquare]
     if (touchedPiece?.owner == currentPlayer && touchedSquare != previousSelectedSquare) {
-      validMoveSquares.addAll(calculateValidMoveSquares(touchedPiece, touchedSquare))
+      validMoveSquares.addAll(calculateValidMoveSquares(touchedSquare, touchedPiece))
     }
   }
 
-  private fun calculateValidMoveSquares(piece: Piece, location: Square): List<Square> {
-    val ownPieceSquares = pieceLocations.keys.filter { pieceLocations[it]?.owner == piece.owner }
-    val otherPieceSquares = pieceLocations.keys.filter { pieceLocations[it]?.owner != piece.owner }
+  private fun calculateValidMoveSquares(location: Square, piece: Piece): List<Square> {
+    val ownPieceSquares = pieceLocations.filter { it.value.owner == piece.owner }.keys
+    val opponentPieceLocations = pieceLocations.filter { it.value.owner != piece.owner }
+    val opponentPieceSquares = opponentPieceLocations.keys
 
     return squares.asSequence()
       .filter { piece.type.isValidPath(location, it, piece.owner) }
       .filter { !ownPieceSquares.contains(it) }
       .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
-      .filter { possibleSquare -> !otherPieceSquares.any { it.isBetween(possibleSquare, location) } }
+      .filter { possibleSquare -> !opponentPieceSquares.any { it.isBetween(possibleSquare, location) } }
       .filter {
         piece.type != PieceType.PAWN
-            || it.isAheadOf(location, piece.owner) && !otherPieceSquares.contains(it)
-            || it.isDiagonalTo(location) && otherPieceSquares.contains(it)
+            || it.isAheadOf(location, piece.owner) && !opponentPieceSquares.contains(it)
+            || it.isDiagonalTo(location) && opponentPieceSquares.contains(it)
             || enPassantSquare == it
+      }.filter {
+        piece.type != PieceType.KING
+            || !opponentPieceLocations.filter { (_, piece) -> piece.type != PieceType.KING }
+          .flatMap { (square, piece) -> calculateValidMoveSquares(square, piece) }
+          .distinct()
+          .contains(it)
       }.toList()
   }
 }
