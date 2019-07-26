@@ -136,7 +136,7 @@ class Board(
     Square(row, column, squareWidth, color)
   }
 
-  val pieceLocations = mutableMapOf(
+  val pieces = mutableMapOf(
     get(1, 1) to Piece(PieceType.ROOK, Player.WHITE, texture),
     get(2, 1) to Piece(PieceType.KNIGHT, Player.WHITE, texture),
     get(3, 1) to Piece(PieceType.BISHOP, Player.WHITE, texture),
@@ -175,7 +175,7 @@ class Board(
 
   fun touch(x: Float, y: Float) {
     val touchedSquare = get(ceil(x / squareWidth), ceil(y / squareWidth))
-    val selectedPiece = pieceLocations[selectedSquare]
+    val selectedPiece = pieces[selectedSquare]
 
     val previousSelectedSquare = selectedSquare
 
@@ -192,7 +192,7 @@ class Board(
     } else {
       //Moving a piece
       if (selectedPiece.type == PieceType.PAWN && touchedSquare == enPassantSquare) {
-        pieceLocations.remove(enPassantPieceSquare)
+        pieces.remove(enPassantPieceSquare)
       }
 
       if (selectedPiece.type == PieceType.PAWN && previousSelectedSquare != null
@@ -205,16 +205,16 @@ class Board(
         enPassantPieceSquare = null
       }
 
-      pieceLocations.remove(previousSelectedSquare)
-      pieceLocations[touchedSquare] = selectedPiece
+      pieces.remove(previousSelectedSquare)
+      pieces[touchedSquare] = selectedPiece
       selectedSquare = null
       currentPlayer = currentPlayer.next()
     }
 
     validMoveSquares.clear()
-    val touchedPiece = pieceLocations[touchedSquare]
+    val touchedPiece = pieces[touchedSquare]
     if (touchedPiece?.owner == currentPlayer && touchedSquare != previousSelectedSquare) {
-      validMoveSquares.addAll(calculateValidMoveSquares(touchedSquare, touchedPiece, pieceLocations))
+      validMoveSquares.addAll(calculateValidMoveSquares(touchedSquare, touchedPiece, pieces))
     }
   }
 
@@ -223,11 +223,11 @@ class Board(
     piece: Piece,
     pieceLocations: Map<Square, Piece>
   ): List<Square> {
-    val ownPieceSquares = pieceLocations.filter { it.value.owner == piece.owner }.keys
+    val pieceSquares = pieceLocations.keys
 
     return squares.asSequence()
       .filter { piece.type.isValidPath(location, it, piece.owner) }
-      .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
+      .filter { possibleSquare -> !pieceSquares.any { it.isBetween(possibleSquare, location) } }
       .filter { piece.type != PieceType.PAWN || it.isDiagonalTo(location) || enPassantSquare == it }
       .toList()
   }
@@ -235,27 +235,42 @@ class Board(
   private fun calculateValidMoveSquares(
     location: Square,
     piece: Piece,
-    pieceLocations: Map<Square, Piece>
+    pieces: Map<Square, Piece>
   ): List<Square> {
-    val ownPieceSquares = pieceLocations.filter { it.value.owner == piece.owner }.keys
-    val opponentPieceLocations = pieceLocations.filter { it.value.owner != piece.owner }
-    val opponentPieceSquares = opponentPieceLocations.keys
+    val pieceSquares = pieces.keys
+    val ownPieceSquares = pieces.filter { it.value.owner == piece.owner }.keys
+    val opponentPieces = pieces.filter { it.value.owner != piece.owner }
+    val opponentPieceSquares = opponentPieces.keys
 
-    val opponentAttackSquares = opponentPieceLocations
-      .flatMap { (square, piece) -> calculateValidAttackSquares(square, piece, pieceLocations) }
-      .distinct()
+    val kingLocation = pieces
+      .filter { it.value.owner == piece.owner && it.value.type == PieceType.KING }
+      .keys.first()
 
     return squares.asSequence()
       .filter { piece.type.isValidPath(location, it, piece.owner) }
       .filter { !ownPieceSquares.contains(it) }
-      .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
-      .filter { possibleSquare -> !opponentPieceSquares.any { it.isBetween(possibleSquare, location) } }
+      .filter { possibleSquare -> !pieceSquares.any { it.isBetween(possibleSquare, location) } }
       .filter {
         piece.type != PieceType.PAWN
             || it.isAheadOf(location, piece.owner) && !opponentPieceSquares.contains(it)
             || it.isDiagonalTo(location) && opponentPieceSquares.contains(it)
             || enPassantSquare == it
-      }.filter { piece.type != PieceType.KING || !opponentAttackSquares.contains(it) }
+      }.filter {
+        piece.type != PieceType.KING || !opponentPieces
+          .flatMap { (square, piece) -> calculateValidAttackSquares(square, piece, pieces) }
+          .distinct()
+          .contains(it)
+      }
+      .filter {
+        val nextPieces = pieces.toMutableMap()
+        nextPieces.remove(location)
+        nextPieces[it] = piece
+        val nextOpponentPieces = nextPieces.filter { entry -> entry.value.owner != piece.owner }
+        !nextOpponentPieces
+          .flatMap { (square, piece) -> calculateValidAttackSquares(square, piece, nextPieces) }
+          .distinct()
+          .contains(if (piece.type == PieceType.KING) it else kingLocation)
+      }
       .toList()
   }
 }
@@ -331,7 +346,7 @@ class GameScreen(width: Float, height: Float) : KtxScreen, KtxInputAdapter {
   override fun render(delta: Float) {
     camera.update()
     board.squares.forEach { square -> factory.add(board, square) }
-    board.pieceLocations.forEach { (square, piece) -> factory.add(square, piece) }
+    board.pieces.forEach { (square, piece) -> factory.add(square, piece) }
   }
 
   override fun touchDown(screenX: Int, screenY: Int, pointer: Int, button: Int): Boolean {
