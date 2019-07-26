@@ -241,6 +241,10 @@ class Board(
     val opponentPieceLocations = pieceLocations.filter { it.value.owner != piece.owner }
     val opponentPieceSquares = opponentPieceLocations.keys
 
+    val opponentAttackSquares = opponentPieceLocations
+      .flatMap { (square, piece) -> calculateValidAttackSquares(square, piece, pieceLocations) }
+      .distinct()
+
     return squares.asSequence()
       .filter { piece.type.isValidPath(location, it, piece.owner) }
       .filter { !ownPieceSquares.contains(it) }
@@ -251,13 +255,8 @@ class Board(
             || it.isAheadOf(location, piece.owner) && !opponentPieceSquares.contains(it)
             || it.isDiagonalTo(location) && opponentPieceSquares.contains(it)
             || enPassantSquare == it
-      }.filter {
-        piece.type != PieceType.KING
-            || !opponentPieceLocations.filter { (_, piece) -> piece.type != PieceType.KING }
-          .flatMap { (square, piece) -> calculateValidAttackSquares(square, piece, pieceLocations) }
-          .distinct()
-          .contains(it)
-      }.toList()
+      }.filter { piece.type != PieceType.KING || !opponentAttackSquares.contains(it) }
+      .toList()
   }
 }
 
