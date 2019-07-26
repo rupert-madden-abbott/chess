@@ -214,16 +214,21 @@ class Board(
     validMoveSquares.clear()
     val touchedPiece = pieceLocations[touchedSquare]
     if (touchedPiece?.owner == currentPlayer && touchedSquare != previousSelectedSquare) {
-      validMoveSquares.addAll(calculateValidMoveSquares(touchedSquare, touchedPiece))
+      validMoveSquares.addAll(calculateValidMoveSquares(touchedSquare, touchedPiece, pieceLocations))
     }
   }
 
-  private fun calculateValidMoveSquares(location: Square, piece: Piece): List<Square> {
+  private fun calculateValidMoveSquares(
+    location: Square,
+    piece: Piece,
+    pieceLocations: Map<Square, Piece>,
+    kingMoves: List<Square> = emptyList()
+  ): List<Square> {
     val ownPieceSquares = pieceLocations.filter { it.value.owner == piece.owner }.keys
     val opponentPieceLocations = pieceLocations.filter { it.value.owner != piece.owner }
     val opponentPieceSquares = opponentPieceLocations.keys
 
-    return squares.asSequence()
+    val validMoves = squares.asSequence()
       .filter { piece.type.isValidPath(location, it, piece.owner) }
       .filter { !ownPieceSquares.contains(it) }
       .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
@@ -231,15 +236,17 @@ class Board(
       .filter {
         piece.type != PieceType.PAWN
             || it.isAheadOf(location, piece.owner) && !opponentPieceSquares.contains(it)
-            || it.isDiagonalTo(location) && opponentPieceSquares.contains(it)
+            || it.isDiagonalTo(location) && (opponentPieceSquares.contains(it) || kingMoves.contains(it))
             || enPassantSquare == it
-      }.filter {
+      }.toList()
+
+      return validMoves.filter {
         piece.type != PieceType.KING
             || !opponentPieceLocations.filter { (_, piece) -> piece.type != PieceType.KING }
-          .flatMap { (square, piece) -> calculateValidMoveSquares(square, piece) }
+          .flatMap { (square, piece) -> calculateValidMoveSquares(square, piece, pieceLocations, validMoves) }
           .distinct()
           .contains(it)
-      }.toList()
+      }
   }
 }
 
