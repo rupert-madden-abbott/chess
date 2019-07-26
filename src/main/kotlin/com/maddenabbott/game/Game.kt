@@ -218,17 +218,30 @@ class Board(
     }
   }
 
+  private fun calculateValidAttackSquares(
+    location: Square,
+    piece: Piece,
+    pieceLocations: Map<Square, Piece>
+  ): List<Square> {
+    val ownPieceSquares = pieceLocations.filter { it.value.owner == piece.owner }.keys
+
+    return squares.asSequence()
+      .filter { piece.type.isValidPath(location, it, piece.owner) }
+      .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
+      .filter { piece.type != PieceType.PAWN || it.isDiagonalTo(location) || enPassantSquare == it }
+      .toList()
+  }
+
   private fun calculateValidMoveSquares(
     location: Square,
     piece: Piece,
-    pieceLocations: Map<Square, Piece>,
-    kingMoves: List<Square> = emptyList()
+    pieceLocations: Map<Square, Piece>
   ): List<Square> {
     val ownPieceSquares = pieceLocations.filter { it.value.owner == piece.owner }.keys
     val opponentPieceLocations = pieceLocations.filter { it.value.owner != piece.owner }
     val opponentPieceSquares = opponentPieceLocations.keys
 
-    val validMoves = squares.asSequence()
+    return squares.asSequence()
       .filter { piece.type.isValidPath(location, it, piece.owner) }
       .filter { !ownPieceSquares.contains(it) }
       .filter { possibleSquare -> !ownPieceSquares.any { it.isBetween(possibleSquare, location) } }
@@ -236,17 +249,15 @@ class Board(
       .filter {
         piece.type != PieceType.PAWN
             || it.isAheadOf(location, piece.owner) && !opponentPieceSquares.contains(it)
-            || it.isDiagonalTo(location) && (opponentPieceSquares.contains(it) || kingMoves.contains(it))
+            || it.isDiagonalTo(location) && opponentPieceSquares.contains(it)
             || enPassantSquare == it
-      }.toList()
-
-      return validMoves.filter {
+      }.filter {
         piece.type != PieceType.KING
             || !opponentPieceLocations.filter { (_, piece) -> piece.type != PieceType.KING }
-          .flatMap { (square, piece) -> calculateValidMoveSquares(square, piece, pieceLocations, validMoves) }
+          .flatMap { (square, piece) -> calculateValidAttackSquares(square, piece, pieceLocations) }
           .distinct()
           .contains(it)
-      }
+      }.toList()
   }
 }
 
