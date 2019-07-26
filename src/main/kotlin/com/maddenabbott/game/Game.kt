@@ -144,7 +144,7 @@ class Board(
     reset()
   }
 
-  fun reset() {
+  private fun reset() {
     selectedSquare = null
     enPassantSquare = null
     enPassantPieceSquare = null
