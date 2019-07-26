@@ -6,10 +6,8 @@ import com.badlogic.gdx.backends.lwjgl3.Lwjgl3Application
 import com.badlogic.gdx.backends.lwjgl3.Lwjgl3ApplicationConfiguration
 import com.badlogic.gdx.graphics.Color
 import com.badlogic.gdx.graphics.OrthographicCamera
-import com.badlogic.gdx.graphics.g2d.Batch
-import com.badlogic.gdx.graphics.g2d.BitmapFont
-import com.badlogic.gdx.graphics.g2d.GlyphLayout
-import com.badlogic.gdx.graphics.g2d.SpriteBatch
+import com.badlogic.gdx.graphics.Texture
+import com.badlogic.gdx.graphics.g2d.*
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer
 import com.badlogic.gdx.math.Vector2
 import com.badlogic.gdx.math.Vector3
@@ -22,13 +20,15 @@ import ktx.app.KtxInputAdapter
 import ktx.app.KtxScreen
 import ktx.graphics.rect
 import ktx.graphics.use
+import kotlin.math.abs
+import kotlin.math.sqrt
 
 enum class Player(
-  val color: Color,
-  private val direction: Int
+  private val direction: Int,
+  val textureY: Int
 ) {
-  WHITE(Color.WHITE, 1),
-  BLACK(Color.BLACK, -1);
+  WHITE(1, 0),
+  BLACK(-1, 1);
 
   fun next() = if (this == WHITE) BLACK else WHITE
 
@@ -49,21 +49,24 @@ fun isPawnForwards(
 
 fun isPawnDiagonal(o: Square, d: Square, p: Player) = p.isAheadOf(o, d) && o.rowsApart(d) == 1 && o.isDiagonalTo(d)
 
-enum class PieceType(val letter: Char, val isValidPath: (Square, Square, Player) -> Boolean) {
-  PAWN('P', { o, d, p -> isPawnForwards(o, d, p) || isPawnDiagonal(o, d, p) }),
-  KNIGHT('N', { o, d, _ -> o.distanceTo(d) > 2 && o.distanceTo(d) < 2.5 }),
-  BISHOP('B', { o, d, _ -> o.isDiagonalTo(d) }),
-  ROOK('R', { o, d, _ -> o.isInlineWith(d) }),
-  QUEEN('Q', { o, d, _ -> o.isDiagonalTo(d) || o.isInlineWith(d) }),
-  KING('K', { o, d, _ -> (o.isDiagonalTo(d) || o.isInlineWith(d)) && o.distanceTo(d) < 2 });
+enum class PieceType(
+  val textureX: Int,
+  val isValidPath: (Square, Square, Player) -> Boolean
+) {
+  PAWN(5, { o, d, p -> isPawnForwards(o, d, p) || isPawnDiagonal(o, d, p) }),
+  KNIGHT(3, { o, d, _ -> o.distanceTo(d) > 2 && o.distanceTo(d) < 2.5 }),
+  BISHOP(2, { o, d, _ -> o.isDiagonalTo(d) }),
+  ROOK(4, { o, d, _ -> o.isInlineWith(d) }),
+  QUEEN(1, { o, d, _ -> o.isDiagonalTo(d) || o.isInlineWith(d) }),
+  KING(0, { o, d, _ -> (o.isDiagonalTo(d) || o.isInlineWith(d)) && o.distanceTo(d) < 2 });
 }
 
 data class Piece(
   val type: PieceType,
-  val owner: Player
+  val owner: Player,
+  val texture: Texture
 ) {
-  val color = owner.color
-  val letter = type.letter
+  val textureRegion = TextureRegion(texture, type.textureX * 107, owner.textureY * 107, 107, 107)
 }
 
 data class Square(
@@ -81,7 +84,7 @@ data class Square(
   fun rowsApart(square: Square) = distance(this.row, square.row)
 
   fun distanceTo(square: Square) =
-    Math.sqrt((columnsApart(square) * columnsApart(square) + rowsApart(square) * rowsApart(square)).toDouble())
+    sqrt((columnsApart(square) * columnsApart(square) + rowsApart(square) * rowsApart(square)).toDouble())
 
   private fun isInColumnWith(square: Square) = column == square.column
 
@@ -91,7 +94,7 @@ data class Square(
 
   fun isAheadOf(square: Square, player: Player) = isInColumnWith(square) && player.isAheadOf(square, this)
 
-  private fun distance(firstCoordinate: Int, secondCoordinate: Int) = Math.abs(firstCoordinate - secondCoordinate)
+  private fun distance(firstCoordinate: Int, secondCoordinate: Int) = abs(firstCoordinate - secondCoordinate)
 
   fun isBetween(first: Square, second: Square) = this != first && this != second
       && (
@@ -106,7 +109,8 @@ data class Square(
 class Board(
   columns: Int,
   rows: Int,
-  width: Float
+  width: Float,
+  texture: Texture
 ) {
   private val squareWidth = width / columns
 
@@ -133,38 +137,38 @@ class Board(
   }
 
   val pieceLocations = mutableMapOf(
-    get(1, 1) to Piece(PieceType.ROOK, Player.WHITE),
-    get(2, 1) to Piece(PieceType.KNIGHT, Player.WHITE),
-    get(3, 1) to Piece(PieceType.BISHOP, Player.WHITE),
-    get(4, 1) to Piece(PieceType.QUEEN, Player.WHITE),
-    get(5, 1) to Piece(PieceType.KING, Player.WHITE),
-    get(6, 1) to Piece(PieceType.BISHOP, Player.WHITE),
-    get(7, 1) to Piece(PieceType.KNIGHT, Player.WHITE),
-    get(8, 1) to Piece(PieceType.ROOK, Player.WHITE),
-    get(1, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(2, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(3, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(4, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(5, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(6, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(7, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(8, 2) to Piece(PieceType.PAWN, Player.WHITE),
-    get(1, 8) to Piece(PieceType.ROOK, Player.BLACK),
-    get(2, 8) to Piece(PieceType.KNIGHT, Player.BLACK),
-    get(3, 8) to Piece(PieceType.BISHOP, Player.BLACK),
-    get(4, 8) to Piece(PieceType.QUEEN, Player.BLACK),
-    get(5, 8) to Piece(PieceType.KING, Player.BLACK),
-    get(6, 8) to Piece(PieceType.BISHOP, Player.BLACK),
-    get(7, 8) to Piece(PieceType.KNIGHT, Player.BLACK),
-    get(8, 8) to Piece(PieceType.ROOK, Player.BLACK),
-    get(1, 7) to Piece(PieceType.PAWN, Player.BLACK),
-    get(2, 7) to Piece(PieceType.PAWN, Player.BLACK),
-    get(3, 7) to Piece(PieceType.PAWN, Player.BLACK),
-    get(4, 7) to Piece(PieceType.PAWN, Player.BLACK),
-    get(5, 7) to Piece(PieceType.PAWN, Player.BLACK),
-    get(6, 7) to Piece(PieceType.PAWN, Player.BLACK),
-    get(7, 7) to Piece(PieceType.PAWN, Player.BLACK),
-    get(8, 7) to Piece(PieceType.PAWN, Player.BLACK)
+    get(1, 1) to Piece(PieceType.ROOK, Player.WHITE, texture),
+    get(2, 1) to Piece(PieceType.KNIGHT, Player.WHITE, texture),
+    get(3, 1) to Piece(PieceType.BISHOP, Player.WHITE, texture),
+    get(4, 1) to Piece(PieceType.QUEEN, Player.WHITE, texture),
+    get(5, 1) to Piece(PieceType.KING, Player.WHITE, texture),
+    get(6, 1) to Piece(PieceType.BISHOP, Player.WHITE, texture),
+    get(7, 1) to Piece(PieceType.KNIGHT, Player.WHITE, texture),
+    get(8, 1) to Piece(PieceType.ROOK, Player.WHITE, texture),
+    get(1, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(2, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(3, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(4, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(5, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(6, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(7, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(8, 2) to Piece(PieceType.PAWN, Player.WHITE, texture),
+    get(1, 8) to Piece(PieceType.ROOK, Player.BLACK, texture),
+    get(2, 8) to Piece(PieceType.KNIGHT, Player.BLACK, texture),
+    get(3, 8) to Piece(PieceType.BISHOP, Player.BLACK, texture),
+    get(4, 8) to Piece(PieceType.QUEEN, Player.BLACK, texture),
+    get(5, 8) to Piece(PieceType.KING, Player.BLACK, texture),
+    get(6, 8) to Piece(PieceType.BISHOP, Player.BLACK, texture),
+    get(7, 8) to Piece(PieceType.KNIGHT, Player.BLACK, texture),
+    get(8, 8) to Piece(PieceType.ROOK, Player.BLACK, texture),
+    get(1, 7) to Piece(PieceType.PAWN, Player.BLACK, texture),
+    get(2, 7) to Piece(PieceType.PAWN, Player.BLACK, texture),
+    get(3, 7) to Piece(PieceType.PAWN, Player.BLACK, texture),
+    get(4, 7) to Piece(PieceType.PAWN, Player.BLACK, texture),
+    get(5, 7) to Piece(PieceType.PAWN, Player.BLACK, texture),
+    get(6, 7) to Piece(PieceType.PAWN, Player.BLACK, texture),
+    get(7, 7) to Piece(PieceType.PAWN, Player.BLACK, texture),
+    get(8, 7) to Piece(PieceType.PAWN, Player.BLACK, texture)
   )
 
   fun get(column: Int, row: Int) = squares.find { it.column == column && it.row == row }!!
@@ -286,47 +290,18 @@ class GameEntityFactory(
   }
 
   fun add(square: Square, piece: Piece) {
-    val length = square.length / 2
-    val padding = length * .35F
-    val borderRadius = length - padding
-
-    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-    shapeRenderer.color = Color.BLACK
-    shapeRenderer.circle(
-      square.position.x + (square.length / 2),
-      square.position.y + (square.length / 2),
-      borderRadius,
-      borderRadius.toInt()
-    )
-    shapeRenderer.end()
-
-    shapeRenderer.begin(ShapeRenderer.ShapeType.Filled)
-    shapeRenderer.color = piece.color
-    val innerRadius = borderRadius - (borderRadius * .1F)
-    shapeRenderer.circle(
-      square.position.x + (square.length / 2),
-      square.position.y + (square.length / 2),
-      innerRadius,
-      innerRadius.toInt()
-    )
-    shapeRenderer.end()
-
-    batch.begin()
-    font.data.setScale(2f)
-    glyphLayout.setText(font, piece.letter.toString())
-    font.color = if (piece.color == Color.WHITE) Color.BLACK else Color.WHITE
-    font.draw(
-      batch,
-      piece.letter.toString(),
-      square.position.x + (square.length - glyphLayout.width) / 2,
-      square.position.y + glyphLayout.height + (square.length - glyphLayout.height) / 2
-    )
-    batch.end()
+    batch.use {
+      it.draw(
+        piece.textureRegion,
+        square.position.x + (square.length - piece.textureRegion.regionWidth) / 2,
+        square.position.y + (square.length - piece.textureRegion.regionHeight) / 2
+      )
+    }
   }
 }
 
 class GameScreen(width: Float, height: Float) : KtxScreen, KtxInputAdapter {
-  private val board = Board(8, 8, width)
+  private val board = Board(8, 8, width, Texture(Gdx.files.internal("pieces.png")))
   private val factory = GameEntityFactory(BitmapFont(), SpriteBatch(), ShapeRenderer())
   private val camera = OrthographicCamera(width, height)
   private val touchPosition = Vector3()
